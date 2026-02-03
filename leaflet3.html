@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Østmarka Offline Kart</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+<div id="map" style="width:100%; height:100vh;"></div>
+<script>
+var map = L.map('map').setView([59.883, 10.850], 12);
+
+var overlays = {};
+
+function addLayer(file, style, name){
+  fetch(file)
+    .then(res => res.json())
+    .then(data => {
+      var layer = L.geoJSON(data, {style: style}).addTo(map);
+      overlays[name] = layer;
+    });
+}
+
+
+addLayer('Basisdata_0301_Oslo_25832_N50Samferdsel_GML.geojson', {color:'black', weight:2}, 'Samferdsel');
+addLayer('Basisdata_0301_Oslo_25832_N50Stedsnavn_GML.geojson', {color:'brown', weight:2}, 'Stedsnavn');
+addLayer('Basisdata_0301_Oslo_25832_N50Restriksjonsomrader_GML.geojson', {color:'gray', weight:1}, 'Høyde');
+addLayer('Basisdata_0301_Oslo_25832_N50Hoyde_GML.geojson', {color:'purple', weight:1, fillOpacity:0.3}, 'Eiendom');
+addLayer('Basisdata_0301_Oslo_25832_N50BygningerOgAnlegg_GML.geojson', {color:'blue', weight:1}, 'Veidekke');
+addLayer('Basisdata_0301_Oslo_25832_N50Arealdekke_GML.geojson', {color:'green', weight:1}, 'Arealdekke');
+
+L.control.layers(null, overlays).addTo(map);
+</script>
+</body>
+</html>
