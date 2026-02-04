@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <script src="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+  <link href="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.css" rel="stylesheet" />
+  <style>
+    body, html { margin:0; height:100%; }
+    #map { height:100%; }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+
+<script>
+const map = new maplibregl.Map({
+  container: 'map',
+  style: 'https://demotiles.maplibre.org/style.json',
+  center: [10.75, 59.91], // Oslo
+  zoom: 11
+});
+
+map.on('load', () => {
+
+  // Add OpenStreetMap raster tiles as background
+  map.addSource('n50', {
+    type: 'raster',
+    tiles: [
+      'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'
+    ],
+    tileSize: 256,
+    maxzoom: 19,
+    attribution: '© OpenStreetMap contributors'
+  });
+
+  map.addLayer({
+    id: 'n50',
+    type: 'raster',
+    source: 'n50',
+    paint: {}
+  });
+
+
+  // Load buildings GeoJSON and filter to Oslo bbox using Turf.js
+  const osloBbox = [10.55, 59.85, 10.95, 59.99]; // [minX,minY,maxX,maxY]
+  const osloPoly = turf.bboxPolygon(osloBbox);
+
+  fetch('bygninger.geojson')
+    .then(r => r.json())
+    .then(geojson => {
+      const filtered = {
+        type: 'FeatureCollection',
+        features: (geojson.features || []).filter(f => turf.booleanIntersects(f, osloPoly))
+      };
+      map.addSource('bygninger_oslo', { type: 'geojson', data: filtered });
+      map.addLayer({
+        id: 'bygninger',
+        type: 'fill',
+        source: 'bygninger_oslo',
+        paint: {
+          'fill-color': '#d0d0d0',
+          'fill-outline-color': '#999999'
+        }
+      });
+    })
+    .catch(err => console.error('Failed to load buildings:', err));
+
+});
+</script>
+</body>
+</html>
