@@ -22,6 +22,43 @@
         zoom: 12
     });
 
+    // createGrid function (returns GeoJSON FeatureCollection of LineStrings)
+    function createGrid(bounds, cellSize) {
+      const features = [];
+      const minX = bounds.getWest();
+      const maxX = bounds.getEast();
+      const minY = bounds.getSouth();
+      const maxY = bounds.getNorth();
+
+      for (let x = minX; x <= maxX; x += cellSize) {
+        features.push({
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [x, minY],
+              [x, maxY]
+            ]
+          }
+        });
+      }
+
+      for (let y = minY; y <= maxY; y += cellSize) {
+        features.push({
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [minX, y],
+              [maxX, y]
+            ]
+          }
+        });
+      }
+
+      return { type: 'FeatureCollection', features };
+    }
+
     map.on('load', () => {
         // Add Kartverket N50 raster WMTS as background
         map.addSource('n50', {
@@ -359,6 +396,20 @@ map.addLayer({
                 'fill-color': 'blue',
                 'fill-opacity': 0.8
             }
+        });
+        map.addSource('grid', {
+          'type': 'geojson',
+          'data': createGrid(map.getBounds(), 0.001)
+        });
+        map.addLayer({
+          'id': 'grid',
+          'type': 'line',
+          'source': 'grid',
+          'layout': {},
+          'paint': {
+            'line-color': 'red',
+            'line-width': 1
+          }
         });
     });
 </script>
