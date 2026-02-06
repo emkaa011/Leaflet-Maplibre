@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Rutenett med Andreas GeoJSON</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+<div id="map" style="width:100%; height:100vh;"></div>
+
+<script>
+// ----------------- MAP -----------------
+var map = L.map('map').setView([59.90417, 10.89667], 13);
+
+L.tileLayer('https://cache.kartverket.no/v1/wmts/1.0.0/topo/default/webmercator/{z}/{y}/{x}.png', {
+    maxZoom: 19
+}).addTo(map);
+
+var overlays = {};
+var andreasLayer = null;
+
+// ----------------- ADD LAYER FUNCTION -----------------
+function addLayer(file, style, name){
+  fetch(file)
+    .then(res => res.json())
+    .then(data => {
+      var layer = L.geoJSON(data, {
+        style: style,
+        filter: f => f.geometry.type !== "Point"
+      }).addTo(map);
+
+      overlays[name] = layer;
+
+      if(file === 'andreas.geojson'){
+        andreasLayer = layer;
+      }
+    });
+}
+
+// ----------------- GRID -----------------
+var gridLayer = L.layerGroup().addTo(map);
+
+function drawGrid(sizeMeters){
+  gridLayer.clearLayers();
+
+  // Skjul grid når zoom langt ut
+  if(map.getZoom() < 13) return;
+
+  var bounds = map.getBounds();
+  var sw = map.options.crs.project(bounds.getSouthWest());
+  var ne = map.options.crs.project(bounds.getNorthEast());
+
+  var startX = Math.floor(sw.x / sizeMeters) * sizeMeters;
+  var endX   = Math.ceil(ne.x / sizeMeters) * sizeMeters;
+  var startY = Math.floor(sw.y / sizeMeters) * sizeMeters;
+  var endY   = Math.ceil(ne.y / sizeMeters) * sizeMeters;
+
+  for(let x = startX; x <= endX; x += sizeMeters){
+    for(let y = startY; y <= endY; y += sizeMeters){
+
+      let p1 = map.options.crs.unproject(L.point(x, y));
+      let p2 = map.options.crs.unproject(L.point(x + sizeMeters, y + sizeMeters));
+
+      let center = map.options.crs.unproject(
+        L.point(x + sizeMeters/2, y + sizeMeters/2)
+      );
+
+      let hit = andreasLayer ? hitsAndreas(center) : false;
+
+      L.rectangle([p1, p2], {
+        color: hit ? 'red' : 'black',
+        weight: hit ? 2 : 1,
+        opacity: 0.6,
+        fillOpacity: hit ? 0.2 : 0
+      }).addTo(gridLayer);
+    }
+  }
+}
+
+// ----------------- HIT TEST ANDREAS -----------------
+function hitsAndreas(latlng){
+  var found = false;
+
+  andreasLayer.eachLayer(function(layer){
+    var pts = layer.getLatLngs();
+
+    if(Array.isArray(pts)){
+      for(let i=0; i<pts.length; i++){
+        var d = latlng.distanceTo(pts[i]);
+        if(d < 50){ // meter toleranse
+          found = true;
+        }
+      }
+    }
+  });
+
+  return found;
+}
+
+// ----------------- LOAD YOUR GEOJSON LAYERS -----------------
+addLayer('omrader.geojson', {color:'red', weight:4}, 'Høyde');
+addLayer('restriksjonsomraderlørenskog.geojson', {color:'red', weight:4}, 'Høyde');
+addLayer('restriksjonsomradeenebakk.geojson', {color:'red', weight:4}, 'Høyde');
+addLayer('romradefollo.geojson', {color:'red', weight:4}, 'Høyde');
+addLayer('romraderalingen.geojson', {color:'red', weight:4}, 'Høyde');
+addLayer('andreas.geojson', {color:'orange', weight:4}, 'Andreas');
+
+// ----------------- INITIAL GRID DRAW -----------------
+drawGrid(100);
+map.on('moveend zoomend', () => drawGrid(100));
+
+// ----------------- LAYER CONTROL -----------------
+L.control.layers(null, overlays).addTo(map);
+
+</script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Østmarka Offline Kart</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+<div id="map" style="width:100%; height:100vh;"></div>
+<script>
+        var map = L.map('map').setView([59.90417, 10.89667], 13);
+        L.tileLayer('https://cache.kartverket.no/v1/wmts/1.0.0/topo/default/webmercator/{z}/{y}/{x}.png', {
+            maxZoom: 19,
+        }).addTo(map);
+
+var overlays = {};
+
+function addLayer(file, style, name){
+  fetch(file)
+    .then(res => res.json())
+    .then(data => {
+     var layer = L.geoJSON(data, {
+  style: style,
+  filter: function(feature) {
+    return feature.geometry.type !== "Point";
+  }
+}).addTo(map);
+      overlays[name] = layer;
+    });
+}
+
+function addGrid(sizeMeters) {
+  var gridLayer = L.layerGroup();
+
+ function drawGrid() {
+
+  gridLayer.clearLayers();
+
+  // Skjul grid når man zoomer for langt ut
+  if (map.getZoom() < 14) {
+    return;
+  }
+
+  
+
+    var bounds = map.getBounds();
+
+    var southWest = map.options.crs.project(bounds.getSouthWest());
+    var northEast = map.options.crs.project(bounds.getNorthEast());
+
+    var startX = Math.floor(southWest.x / sizeMeters) * sizeMeters;
+    var endX   = Math.ceil(northEast.x / sizeMeters) * sizeMeters;
+    var startY = Math.floor(southWest.y / sizeMeters) * sizeMeters;
+    var endY   = Math.ceil(northEast.y / sizeMeters) * sizeMeters;
+
+    for (var x = startX; x <= endX; x += sizeMeters) {
+      var p1 = map.options.crs.unproject(L.point(x, startY));
+      var p2 = map.options.crs.unproject(L.point(x, endY));
+
+      L.polyline([p1, p2], {
+        color: 'black',
+        weight: 1,
+        opacity: 0.4
+      }).addTo(gridLayer);
+    }
+
+    for (var y = startY; y <= endY; y += sizeMeters) {
+      var p1 = map.options.crs.unproject(L.point(startX, y));
+      var p2 = map.options.crs.unproject(L.point(endX, y));
+
+      L.polyline([p1, p2], {
+        color: 'black',
+        weight: 1,
+        opacity: 0.4
+      }).addTo(gridLayer);
+    }
+  }
+
+  drawGrid();
+  map.on('moveend zoomend', drawGrid);
+
+  return gridLayer;
+}
+
+var grid100m = addGrid(100);
+grid100m.addTo(map);
+
+overlays["100m rutenett"] = grid100m;
+
+
+addLayer('omrader.geojson', {color:'red', weight:4}, 'Høyde');
+addLayer('restriksjonsomraderlørenskog.geojson', {color:'red', weight:4}, 'Høyde');
+addLayer('restriksjonsomradeenebakk.geojson', {color:'red', weight:4}, 'Høyde');
+addLayer('romradefollo.geojson', {color:'red', weight:4}, 'Høyde');
+addLayer('romraderalingen.geojson', {color:'red', weight:4}, 'Høyde');
+addLayer('stedoslo.geojson', {color:'green', weight:4}, 'Høyde');
+addLayer('bygninger.geojson', {color:'blue', weight:4}, 'Høyde');
+addLayer('andreas.geojson', {color:'orange', weight:4}, 'Høyde');
+
+
+if (file === 'bygninger.geojson') {
+  options.filter = function(feature) {
+    return feature.geometry.type === "Polygon" ||
+           feature.geometry.type === "MultiPolygon";
+  };
+}
+
+L.control.layers(null, overlays).addTo(map);
+</script>
+</body>
+</html>
